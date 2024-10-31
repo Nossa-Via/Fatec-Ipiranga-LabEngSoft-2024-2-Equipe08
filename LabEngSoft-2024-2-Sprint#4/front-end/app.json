@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "nossavia",
+    "slug": "nossavia",
+    "version": "3.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "nossavia",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.frsouzaa.nossavia",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyD-90ewwkdJ78ApkIUY6i9iCO6Msdf47L0"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Para adicionar fotos, precisamos de permissão para acessar sua galeria.",
+          "cameraPermission": "Para adicionar fotos, precisamos de permissão para acessar sua câmera."
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "3f7e6023-6bd2-4e09-8b79-6bd54df41d67"
+      }
+    }
+  }
+}

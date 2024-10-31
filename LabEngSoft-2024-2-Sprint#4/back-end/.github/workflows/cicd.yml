@@ -1,0 +1,98 @@
+name: ci/cd
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  infos:
+    runs-on: ubuntu-latest
+    env:
+      DB_URI: "postgresql+psycopg2://postgres:postgres@localhost:50000/postgres"
+      JWT_KEY: ${{ secrets.JWT_KEY }}
+      AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
+      AZURE_BLOB_CONTAINER_USUARIOS: ${{ vars.AZURE_BLOB_CONTAINER_USUARIOS }}
+      AZURE_BLOB_CONTAINER_RECLAMACOES: ${{ vars.AZURE_BLOB_CONTAINER_RECLAMACOES }}
+      AZURE_BLOB_URL: ${{ vars.AZURE_BLOB_URL }}
+      PORT: ${{ vars.PORT }}
+    outputs:
+      image_json: ${{ steps.image_json.outputs.image_json }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: ler image.json
+        id: image_json
+        run: |
+          echo "image_json=$(jq -c . < image.json)" >> "$GITHUB_OUTPUT"
+      - name: testes
+        run: |
+          pip install -r requirements.txt
+          ./run_tests.sh
+          echo """
+            ### Arquivos com menos de 100% de cobertura de testes de código
+            $(coverage report -m --sort=cover --skip-empty --format=markdown --omit="tests/*" --skip-covered)
+          """ >> $GITHUB_STEP_SUMMARY
+  docker:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILD_RECORD_UPLOAD: false
+    needs: infos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Verificar se a versão já existe
+        run: |
+          docker pull ${{ vars.CONTAINER_NAME }}:${{ fromJson(needs.infos.outputs.image_json).tag }} > /dev/null && res=1 || res=0
+          if [[ $res -eq 1 ]]; then
+            echo "::error::A versão ${{ fromJson(needs.infos.outputs.image_json).tag }} já existe! Altere a versão antes de realizar outro build."
+            exit 1
+          fi
+      - name: Build and push
+        env:
+          DOCKER_BUILD_SUMMARY: false
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ${{ vars.CONTAINER_NAME }}:${{ fromJson(needs.infos.outputs.image_json).tag }}
+          build-args: |
+            DB_URI=${{ secrets.DB_URI }}
+            JWT_KEY=${{ secrets.JWT_KEY }}
+            AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}
+            AZURE_BLOB_CONTAINER_USUARIOS=${{ vars.AZURE_BLOB_CONTAINER_USUARIOS }}
+            AZURE_BLOB_CONTAINER_RECLAMACOES=${{ vars.AZURE_BLOB_CONTAINER_RECLAMACOES }}
+            AZURE_BLOB_URL=${{ vars.AZURE_BLOB_URL }}
+            PORT=${{ vars.PORT }}
+            EMAIL=${{ vars.EMAIL }}
+            SENHA=${{ secrets.SENHA }}
+  azure:
+    runs-on: ubuntu-latest
+    needs: ["docker", "infos"]
+    steps:
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Azure CLI script
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az containerapp up \
+              --name ${{ vars.CONTAINER_APP_NAME }} \
+              --image index.docker.io/${{ vars.CONTAINER_NAME }}:${{ fromJson(needs.infos.outputs.image_json).tag }} \
+              --ingress external \
+              --target-port 80

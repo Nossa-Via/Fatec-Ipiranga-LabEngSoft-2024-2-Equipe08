@@ -1,0 +1,13 @@
+{
+  "build": {
+    "preview": {
+      "android": {
+        "buildType": "apk",
+        "env": {
+          "EXPO_PUBLIC_BASE_URL": "EXPO_PUBLIC_BASE_URL"
+        }
+      }
+    },
+    "production": {}
+  }
+}
