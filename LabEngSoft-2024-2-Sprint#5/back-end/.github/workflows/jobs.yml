@@ -1,0 +1,29 @@
+name: midnight jobs
+
+on:
+  schedule:
+    - cron: "1 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  midnight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Run jobs
+        env:
+          DB_URI: ${{ secrets.DB_URI }}
+          PONTOS_RECLAMACAO: ${{ vars.PONTOS_RECLAMACAO }}
+          PONTOS_COMENTARIO: ${{ vars.PONTOS_COMENTARIO }}
+          PONTOS_CURTIDA: ${{ vars.PONTOS_CURTIDA }}
+          DIAS_JOB: ${{ vars.DIAS_JOB }}
+        run: |
+          python jobs.py
